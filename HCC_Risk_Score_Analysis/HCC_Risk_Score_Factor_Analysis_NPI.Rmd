@@ -1,0 +1,233 @@
+---
+title: "NPI Level HCC Risk Score Time Series Analysis"
+author: "Amy Jin"
+date: "1/31/2019"
+output: html_document
+---
+
+## Risk Score Data Processing
+
+```{SQL, eval = F, results=F}
+SELECT d13.`npi`,
+2019 - age_data.byear AS age,
+d13.gender_of_the_provider AS npi_gender_15,
+d13.number_of_medicare_beneficiaries AS bene_cnt_15,
+d13.`average_age_of_beneficiaries` AS avg_age_bene_15,
+d13.`number_of_female_beneficiaries` AS female_bene_cnt_15,
+d13.`number_of_male_beneficiaries` AS male_bene_cnt_15,
+d13.`number_of_non_hispanic_white_beneficiaries` AS white_bene_cnt_15,
+d13.`number_of_black_or_african_american_beneficiaries` AS black_bene_cnt_15,
+d13.`number_of_asian_pacific_islander_beneficiaries` AS api_bene_cnt_15,
+d13.`number_of_hispanic_beneficiaries` AS hispanic_bene_cnt_15,
+d13.number_of_american_indian_alaska_native_beneficiaries AS native_bene_cnt_15,
+d13.number_of_beneficiaries_with_race_not_elsewhere_classified AS other_race_bene_cnt_15,
+d13.`average_hcc_risk_score_of_beneficiaries` AS avg_hcc_risk_15,
+d14.`npi` AS npi_16,
+d14.nppes_provider_gender AS npi_gender_16,
+d14.total_unique_benes AS bene_cnt_16,
+d14.beneficiary_average_age AS avg_age_bene_16,
+d14.beneficiary_female_count AS female_bene_cnt_16,
+d14.beneficiary_male_count AS male_bene_cnt_16,
+d14.beneficiary_race_white_count AS white_bene_cnt_16,
+d14.beneficiary_race_black_count AS black_bene_cnt_16,
+d14.beneficiary_race_api_count AS api_bene_cnt_16,
+d14.beneficiary_race_hispanic_count AS hispanic_bene_16,
+d14.beneficiary_race_natind_count AS native_bene_cnt_16,
+d14.beneficiary_race_other_count AS other_race_bene_cnt_16,
+d14.beneficiary_average_risk_score AS avg_hcc_risk_15,
+d13.average_hcc_risk_score_of_beneficiaries - d14.beneficiary_average_risk_score AS risk_score_change
+FROM npi_summary.npi_summary_2015 AS d13
+  JOIN npi_summary.npi_summary_2016 AS d14
+    ON d13.npi = d14.npi
+JOIN mdppas.meta_mdppas_latest AS age_data
+ON d13.npi = age_data.npi;
+```
+
+
+```{r}
+library(dplyr)
+library("ggpubr")
+data <- read.csv("/Users/yuejin/Desktop/HCC_Risk_Score_Analysis/hcc_risk_score_npi_2015_2016.csv", header = T)
+head(data, n=2)
+```
+
+
+## If HCP gender is significant to risk score change from 2015 to 2016
+
+```{r}
+#colnames(data)
+gender_hcp <- data[, c(3,28)]
+head(gender_hcp)
+summary(gender_hcp)
+levels(gender_hcp$npi_gender_15)
+```
+
+Compute summary statistics by gender - count, mean, sd:
+
+```{r, warning=F}
+group_by(gender_hcp, npi_gender_15) %>%
+  summarise(
+    count = n(),
+    mean = mean(abs(risk_score_change), na.rm = TRUE),
+    sd = sd(risk_score_change, na.rm = TRUE)
+  )
+```
+
+The above table shows the count, mean and standard deviation of absolute risk score change from 2015 to 2016. There are more male HCPs(500588) than female ones (354639). Female HCPs have an average of 0.21041444 absolute risk score change and male HCPs have an average of 0.16768456 absolute risk score change. And standard deviation of absolute risk score change for female HCPs are higher (0.3475594) than male HCPs (0.2824361). 
+
+```{r}
+# Mean plots
+ggline(gender_hcp, x = "npi_gender_15", y = "risk_score_change", 
+       add = c("mean_se", "jitter"), 
+       ylab = "Risk Score Change from 2015 to 2016", xlab = "Gender")
+```
+
+
+```{r}
+ggboxplot(gender_hcp, x = "npi_gender_15", y = "risk_score_change", 
+          color = "npi_gender_15", palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+          ylab = "Risk Score Change from 2015 to 2016", xlab = "Gender")
+```
+
+We can now make the boxplots above. From the box plots, cannot tell if there is significant difference among genders. Try ANOVA test:
+
+```{r}
+results = aov(abs(risk_score_change) ~ npi_gender_15, data=gender_hcp)
+summary(results)
+```
+
+Studying the output of the ANOVA table above we see that the F-statistic is 3035 with a p-value equal to <2e-16. We clearly reject the null hypothesis of equal means for all three genders.
+
+Conclusion: there are significant differences between the genders.
+
+## If average bene count is significant to risk score change from 2015 to 2016
+
+```{r, fig.width=10}
+colnames(data)
+bene_cnt <- data[, c(4, 28)]
+head(bene_cnt)
+plot(bene_cnt$risk_score_change ~ bene_cnt$bene_cnt_15,
+    xlab = 'Bene Count in 2015', ylab= 'Risk Score Change from 2015 to 2016',
+    main = 'Scatter Plot: Risk Score Change from 2015 to 2016 vs Bene Count in 2015')
+```
+```{r, fig.width=10}
+plot(bene_cnt$risk_score_change ~ bene_cnt$bene_cnt_15, xlim = c(0, 10000),
+    xlab = 'Bene Count in 2015', ylab= 'Risk Score Change from 2015 to 2016',
+    main = 'Scatter Plot: Risk Score Change from 2015 to 2016 vs Bene Count in 2015')
+```
+
+Above two plots are scatter plots of risk score change from 2015 to 2016 and bene count in 2015. Second one focuses on HCPs with less than 10000 bene count. From the above plots, we can clear notice that risk score change variance is decreasing significantly as the bene count increases. 
+
+```{r}
+cor(abs(bene_cnt$risk_score_change), bene_cnt$bene_cnt_15)
+reg <- lm(abs(bene_cnt$risk_score_change) ~ bene_cnt$bene_cnt_15)
+summary(reg)
+```
+The correlation between absoulte risk score change and bene count is -0.1575499, which means that HCPs who have bigger bene count tend to have smaller absoulte risk score change from 2015 to 2016. From the linear regression result, we can see that p value is less than 2e-16, which means bene count is significant to risk score change from 2015 to 2016. And a unit change in bene count will have a drop of 6.307e-05 in absolute risk score change from 2015 to 2016. 
+
+```{r}
+group_bene_cnt <- group_by(bene_cnt, bene_cnt_15) %>%
+  summarise(
+    count = n(),
+    mean = mean(risk_score_change, na.rm = TRUE),
+    sd = sd(risk_score_change, na.rm = TRUE)
+  )
+```
+
+
+```{r}
+ggplot(group_bene_cnt, aes(x=bene_cnt_15, y=sd)) +
+  geom_point()+ ggtitle("Plot: Risk Score Change Standard Deviation vs Bene Count") +
+  xlab("Bene Count") + ylab("Risk Score Change Standard Deviation") +
+  xlim(0, 6500)
+```
+
+From the above SD scatter plot, we can verify that HCP with high bene count tend to have low risk score change standard deviation. 
+
+Conclusion: Risk score variance decreases as bene count increases and risk scores tend to be stable when bene counts are high. 
+
+## If HCP age is significant to risk score change from 2015 to 2016
+
+```{r}
+#colnames(data)
+age_hcp <- data[, c(2,28)]
+age_hcp <- age_hcp[age_hcp$age != 2019, ] # delete data with missing age
+head(age_hcp)
+summary(age_hcp)
+
+cor(age_hcp$risk_score_change, age_hcp$age)
+```
+```{r}
+plot(age_hcp$risk_score_change ~ age_hcp$age
+     ,xlab = 'HCP Age', ylab= 'Risk Score Change from 2015 to 2016',
+     main = 'Scatter Plot: Risk Score Change from 2015 to 2016 vs HCP age')
+reg <- lm(age_hcp$risk_score_change ~ age_hcp$age)
+summary(reg)
+```
+
+```{r}
+group_age <- group_by(age_hcp, age) %>%
+  summarise(
+    count = n(),
+    mean = mean(abs(risk_score_change), na.rm = TRUE),
+    sd = sd(risk_score_change, na.rm = TRUE)
+  )
+```
+
+```{r}
+ggplot(group_age, aes(x=age, y=mean)) +
+  geom_point()+ ggtitle("Plot: Absolute Risk Score Change Mean among Ages") +
+  xlab("Age") + ylab("Risk Score Change Mean")
+```
+
+```{r}
+ggplot(group_age, aes(x=age, y=sd)) +
+  geom_point()+ ggtitle("Plot: Risk Score Change Standard Deviation among Ages") +
+  xlab("Age") + ylab("Risk Score Change Standard Deviation")
+```
+
+
+Conclusion: HCP age is statistically significant to risk score change according to linear regression even though the linear influence is tiny (3.928e-04). Besides, from the scatter plot and sd plot, we can see different aged HCP tend to have different variance of risk score change. 
+
+
+## If bene race is significant to risk score change from 2015 to 2016
+
+Can NOT do the analysis because of lack of the data. 
+
+## If bene gender is significant to risk score change from 2015 to 2016
+
+Can NOT do the analysis because of lack of the data. 
+
+## Conclusions
+
+HCP gender, age and average bene count are statistically significant to risk score change from 2015 to 2016. I cannot do patient analysis, such as patient gender or patient age. Because the data  has no risk scores based on patient features. 
+
+## Reference
+
+Data Source:  https://data.cms.gov/Medicare-Physician-Supplier/Medicare-Physician-and-Other-Supplier-National-Pro/85jw-maq9
+
+ANOVA Tutorial: https://statistics.laerd.com/statistical-guides/one-way-anova-statistical-guide.php
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

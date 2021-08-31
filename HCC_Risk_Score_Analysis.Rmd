@@ -1,0 +1,166 @@
+---
+title: "HCC Risk Score Time Series Analysis"
+author: "Amy Jin"
+date: "1/22/2019"
+output: html_document
+---
+
+## Risk Score Data Processing
+
+Data source: https://data.cms.gov/browse?tags=risk%20score
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+d2014 <- read.csv("/Users/yuejin/Desktop/HCC_Risk_Score_Analysis/2014_County-level_Fee_for_Service__FFS__Data_for_Shared_Savings_Program__SSP__Benchmark_Rebasing_PUF.csv", header =T)
+d2015 <- read.csv("/Users/yuejin/Desktop/HCC_Risk_Score_Analysis/2015_County-level_Fee_for_Service__FFS__Data_for_Shared_Savings_Program__SSP__Benchmark_Rebasing_PUF.csv", header =T)
+d2016 <- read.csv("/Users/yuejin/Desktop/HCC_Risk_Score_Analysis/2016_County-level_Fee_for_Service__FFS__Data_for_Shared_Savings_Program__SSP__Benchmark_Rebasing_PUF.csv", header =T)
+d2017 <- read.csv("/Users/yuejin/Desktop/HCC_Risk_Score_Analysis/2017_County-level_Fee_for_Service__FFS__Data_for_Shared_Savings_Program__SSP__Benchmark_Rebasing_PUF.csv", header =T)
+```
+
+```{r}
+#colnames(d2014)
+library(plyr)
+d1415 <- join(d2014, d2015, by=c("State.ID", "County.ID"), type="inner")
+d141516 <- join(d1415, d2016, by=c("State.ID", "County.ID"), type="inner")
+d14151617 <- join(d141516, d2017, by=c("State.ID", "County.ID"), type="inner")
+#colnames(d14151617)
+join_table <- d14151617[,c(2,3,4,5,1,7,18,22,33,37,48,52)]
+#head(join_table)
+# There are . * in Average.ESRD.HCC.risk.score.3
+join_table$Average.ESRD.HCC.risk.score.3[join_table$Average.ESRD.HCC.risk.score.3 == '.'] <- NA
+join_table$Average.ESRD.HCC.risk.score.3[join_table$Average.ESRD.HCC.risk.score.3 == '*'] <- NA
+
+# Difference between two years
+join_table$Average.ESRD.HCC.risk.score.3 <- as.numeric(as.character(join_table$Average.ESRD.HCC.risk.score.3))
+join_table$diff15_14 <- join_table$Average.ESRD.HCC.risk.score.1 - join_table$Average.ESRD.HCC.risk.score
+join_table$diff16_15 <- join_table$Average.ESRD.HCC.risk.score.2 - join_table$Average.ESRD.HCC.risk.score.1
+join_table$diff17_16 <- join_table$Average.ESRD.HCC.risk.score.3 - join_table$Average.ESRD.HCC.risk.score.2
+
+join_table$diff16_14 <- join_table$Average.ESRD.HCC.risk.score.2 - join_table$Average.ESRD.HCC.risk.score
+join_table$diff17_15 <- join_table$Average.ESRD.HCC.risk.score.3 - join_table$Average.ESRD.HCC.risk.score.1
+
+# Rate between two years
+join_table$pct15_14 <- join_table$diff15_14/join_table$Average.ESRD.HCC.risk.score
+join_table$pct16_15 <- join_table$diff16_15/join_table$Average.ESRD.HCC.risk.score.1
+join_table$pct17_16 <- join_table$diff17_16/join_table$Average.ESRD.HCC.risk.score.2
+head(join_table)
+```
+
+## Hitograms: Average ESRD HCC Risk Score Difference
+
+```{r, fig.width=10}
+hist(join_table$diff15_14, 
+     main="Histogram: Average ESRD HCC Risk Score Difference between 2015 and 2014", 
+     xlab="Average ESRD HCC Risk Score Difference", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=50)
+```
+
+
+```{r, fig.width=10}
+hist(join_table$diff16_15, 
+     main="Histogram: Average ESRD HCC Risk Score Difference between 2016 and 2015", 
+     xlab="Average ESRD HCC Risk Score Difference", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=50)
+```
+
+
+```{r, fig.width=10}
+hist(join_table$diff17_16, 
+     main="Histogram: Average ESRD HCC Risk Score Difference between 2017 and 2016", 
+     xlab="Average ESRD HCC Risk Score Difference", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=50)
+```
+
+```{r, fig.width=10}
+hist(join_table$diff16_14, 
+     main="Histogram: Average ESRD HCC Risk Score Difference between 2016 and 2014", 
+     xlab="Average ESRD HCC Risk Score Difference", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=50)
+```
+
+```{r, fig.width=10}
+hist(join_table$diff17_15, 
+     main="Histogram: Average ESRD HCC Risk Score Difference between 2017 and 2015", 
+     xlab="Average ESRD HCC Risk Score Difference", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=50)
+```
+
+## Hitograms: Average ESRD HCC Risk Score Change Rate
+
+```{r, fig.width=10}
+hist(join_table$pct15_14, 
+     main="Histogram: Average ESRD HCC Risk Score Change Rate between 2015 and 2014", 
+     xlab="Average ESRD HCC Risk Score Change Rate", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=50)
+```
+
+```{r, fig.width=10}
+hist(join_table$pct16_15, 
+     main="Histogram: Average ESRD HCC Risk Score Change Rate between 2016 and 2015", 
+     xlab="Average ESRD HCC Risk Score Change Rate", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=50)
+```
+
+```{r, fig.width=10}
+hist(join_table$pct17_16, 
+     main="Histogram: Average ESRD HCC Risk Score Change Rate between 2017 and 2016", 
+     xlab="Average ESRD HCC Risk Score Change Rate", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=50)
+```
+
+```{r}
+mean(abs(join_table$diff15_14), na.rm=TRUE)
+mean(abs(join_table$diff16_15), na.rm=TRUE)
+mean(abs(join_table$diff17_16), na.rm=TRUE)
+```
+
+* Mean of absolute Average ESRD HCC Risk Score difference from 2014 to 2015 is 0.04141753. 
+* Mean of absolute Average ESRD HCC Risk Score difference from 2015 to 2016 is 0.04096563. 
+* Mean of absolute Average ESRD HCC Risk Score difference from 2016 to 2017 is 0.04233740. 
+
+```{r}
+mean(abs(join_table$pct15_14), na.rm=TRUE)
+mean(abs(join_table$pct16_15), na.rm=TRUE)
+mean(abs(join_table$pct17_16), na.rm=TRUE)
+```
+
+* Mean of absolute Average ESRD HCC Risk Score change rate from 2014 to 2015 is 4.171 %. 
+* Mean of absolute Average ESRD HCC Risk Score change rate from 2015 to 2016 is 4.140 %. 
+* Mean of absolute Average ESRD HCC Risk Score change rate from 2016 to 2017 is 4.284 %. 
+
+Conclusion: there is a moderate difference of Average ESRD HCC Risk Score from year to year.

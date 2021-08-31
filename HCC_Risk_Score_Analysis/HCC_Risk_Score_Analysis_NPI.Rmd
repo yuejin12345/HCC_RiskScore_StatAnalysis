@@ -1,0 +1,207 @@
+---
+title: "NPI Level HCC Risk Score Time Series Analysis"
+author: "Amy Jin"
+date: "1/23/2019"
+output: html_document
+---
+
+## Risk Score Data Processing
+
+Data Source:  https://data.cms.gov/Medicare-Physician-Supplier/Medicare-Physician-and-Other-Supplier-National-Pro/85jw-maq9
+
+```{SQL, eval = F, results=F}
+SELECT
+  d13.npi                                     AS npi,
+  d13.average_hcc_risk_score_of_beneficiaries AS risk_2013,
+  d14.average_hcc_risk_score_of_beneficiaries AS risk_2014,
+  d15.average_hcc_risk_score_of_beneficiaries AS risk_2015,
+  d16.beneficiary_average_risk_score          AS risk_2016,
+  d14.average_hcc_risk_score_of_beneficiaries - d13.average_hcc_risk_score_of_beneficiaries AS diff_2014_2013,
+  d15.average_hcc_risk_score_of_beneficiaries - d14.average_hcc_risk_score_of_beneficiaries AS diff_2015_2014,
+  d16.beneficiary_average_risk_score - d15.average_hcc_risk_score_of_beneficiaries AS diff_2016_2015,
+
+  d15.average_hcc_risk_score_of_beneficiaries - d13.average_hcc_risk_score_of_beneficiaries AS diff_2015_2013,
+  d16.beneficiary_average_risk_score - d14.average_hcc_risk_score_of_beneficiaries AS diff_2016_2014,
+
+  (d14.average_hcc_risk_score_of_beneficiaries - d13.average_hcc_risk_score_of_beneficiaries)/d13.average_hcc_risk_score_of_beneficiaries AS pct_2014_2013,
+  (d15.average_hcc_risk_score_of_beneficiaries - d14.average_hcc_risk_score_of_beneficiaries)/d14.average_hcc_risk_score_of_beneficiaries AS pct_2015_2014,
+  (d15.average_hcc_risk_score_of_beneficiaries - d13.average_hcc_risk_score_of_beneficiaries)/d13.average_hcc_risk_score_of_beneficiaries AS pct_2015_2013,
+
+  (d15.average_hcc_risk_score_of_beneficiaries - d13.average_hcc_risk_score_of_beneficiaries)/d13.average_hcc_risk_score_of_beneficiaries AS pct_2015_2013,
+  (d16.beneficiary_average_risk_score - d14.average_hcc_risk_score_of_beneficiaries)/d14.average_hcc_risk_score_of_beneficiaries AS pct_2016_2014,
+
+  (d16.beneficiary_average_risk_score - d14.average_hcc_risk_score_of_beneficiaries)/d14.average_hcc_risk_score_of_beneficiaries AS pct_2016_2014,
+
+  (d16.beneficiary_average_risk_score - d15.average_hcc_risk_score_of_beneficiaries)/d15.average_hcc_risk_score_of_beneficiaries AS pct_2016_2015
+FROM npi_summary.npi_summary_2013 AS d13
+  JOIN npi_summary.npi_summary_2014 AS d14
+    ON d13.npi = d14.npi
+  JOIN npi_summary.npi_summary_2015 AS d15
+    ON d13.npi = d15.npi
+  JOIN npi_summary.npi_summary_2016 AS d16
+    ON d13.npi = d16.npi;
+```
+
+
+```{r}
+data <- read.csv("/Users/yuejin/Desktop/HCC_Risk_Score_Analysis/Risk_Score_NPI_2013_2016.csv", header = T)
+
+head(data)
+```
+
+
+## Hitograms: ESRD HCC Risk Score Change
+
+```{r, fig.width=10}
+hist(data$diff_2014_2013, 
+     main="Histogram: ESRD HCC Risk Score Change between 2014 and 2013", 
+     xlab="ESRD HCC Risk Score Change", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=500)
+```
+
+
+```{r, fig.width=10}
+hist(data$diff_2015_2014, 
+     main="Histogram: ESRD HCC Risk Score Change between 2015 and 2014", 
+     xlab="ESRD HCC Risk Score Change", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=500)
+```
+
+
+```{r, fig.width=10}
+hist(data$diff_2016_2015, 
+     main="Histogram: ESRD HCC Risk Score Change between 2016 and 2015", 
+     xlab="ESRD HCC Risk Score Change", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=500)
+```
+
+```{r, fig.width=10}
+hist(data$diff_2015_2013, 
+     main="Histogram: ESRD HCC Risk Score Change between 2015 and 2013", 
+     xlab="ESRD HCC Risk Score Change", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=500)
+```
+
+```{r, fig.width=10}
+hist(data$diff_2016_2014, 
+     main="Histogram: ESRD HCC Risk Score Change between 2016 and 2014", 
+     xlab="ESRD HCC Risk Score Change", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=500)
+```
+
+## Hitograms: ESRD HCC Risk Score Percentage Change
+
+```{r, fig.width=10}
+hist(data$pct_2014_2013, 
+     main="Histogram: ESRD HCC Risk Score Percentage Change from 2013 to 2014", 
+     xlab="ESRD HCC Risk Score Change Rate", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=500)
+``` 
+
+```{r, fig.width=10}
+hist(data$pct_2015_2014, 
+     main="Histogram: ESRD HCC Risk Score Percentage Change from 2014 to 2015", 
+     xlab="ESRD HCC Risk Score Percentage Change", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=500)
+```
+
+```{r, fig.width=10}
+hist(data$pct_2016_2015, 
+     main="Histogram: ESRD HCC Risk Score Percentage Change from 2015 to 2016", 
+     xlab="HCC Risk Score Percentage Change", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=500)
+```
+
+```{r, fig.width=10}
+hist(data$pct_2015_2013, 
+     main="Histogram: ESRD HCC Risk Score Percentage Change from 2013 to 2015", 
+     xlab="ESRD HCC Risk Score Percentage Change", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=500)
+```
+
+```{r, fig.width=10}
+hist(data$pct_2016_2014, 
+     main="Histogram: ESRD HCC Risk Score Percentage Change from 2014 to 2016", 
+     xlab="HCC Risk Score Percentage Change", 
+     border="blue", 
+     col="green",
+     xlim=c(-1,1),
+     las=1, 
+     breaks=500)
+```
+
+```{r}
+mean(abs(data$diff_2014_2013), na.rm=TRUE)
+mean(abs(data$diff_2015_2014), na.rm=TRUE)
+mean(abs(data$diff_2016_2015), na.rm=TRUE)
+mean(abs(data$diff_2015_2013), na.rm=TRUE)
+mean(abs(data$diff_2016_2014), na.rm=TRUE)
+```
+
+* Mean of absolute ESRD HCC Risk Score change from 2014 to 2015 is 0.1575151. 
+* Mean of absolute ESRD HCC Risk Score change from 2015 to 2016 is 0.1719135. 
+* Mean of absolute ESRD HCC Risk Score change from 2016 to 2017 is 0.1621504. 
+* Mean of absolute ESRD HCC Risk Score change from 2015 to 2013 is 0.1972525. 
+* Mean of absolute ESRD HCC Risk Score change from 2016 to 2014 is 0.208877. 
+
+```{r}
+mean(abs(data$pct_2014_2013), na.rm=TRUE)
+mean(abs(data$pct_2015_2014), na.rm=TRUE)
+mean(abs(data$pct_2016_2015), na.rm=TRUE)
+mean(abs(data$pct_2015_2013), na.rm=TRUE)
+mean(abs(data$pct_2016_2014), na.rm=TRUE)
+```
+
+* Mean of absolute ESRD HCC Risk Score change percentage from 2014 to 2015 is 10.45657 %. 
+* Mean of absolute ESRD HCC Risk Score change percentage from 2015 to 2016 is 11.83507 %. 
+* Mean of absolute ESRD HCC Risk Score change percentage from 2016 to 2017 is 10.41507 %. 
+* Mean of absolute ESRD HCC Risk Score change percentage from 2015 to 2013 is 13.27411 %. 
+* Mean of absolute ESRD HCC Risk Score change percentage from 2016 to 2014 is 14.30579 %. 
+
+```{r}
+sd(abs(data$pct_2014_2013), na.rm=TRUE)
+sd(abs(data$pct_2015_2014), na.rm=TRUE)
+sd(abs(data$pct_2016_2015), na.rm=TRUE)
+```
+
+* Standard Deviation of absolute ESRD HCC Risk Score change percentage from 2014 to 2015 is 0.1244735. 
+* Standard Deviation of absolute ESRD HCC Risk Score change percentage from 2015 to 2016 is 0.1346847. 
+* Standard Deviation of absolute ESRD HCC Risk Score change percentage from 2016 to 2017 is 0.1256690. 
+
+Conclusion: there is a moderate difference of Average ESRD HCC Risk Score from year to year.
